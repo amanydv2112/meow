@@ -77,6 +77,7 @@ final class MainApp: NSObject, NSApplicationDelegate {
         guard trusted else {
             shortcutMonitor.stop()
             appState.lastMessage = "Enable Accessibility permission for Option + Space"
+            appState.shortcutMonitorActive = false
             statusBarController.refresh()
             if promptForAccessibility {
                 UserNotifier.notify(
@@ -93,11 +94,13 @@ final class MainApp: NSObject, NSApplicationDelegate {
 
         guard shortcutMonitor.start() else {
             appState.lastMessage = "Unable to start Option + Space shortcut. Restart EchoType."
+            appState.shortcutMonitorActive = false
             UserNotifier.notify(title: "EchoType shortcut unavailable", body: appState.lastMessage)
             statusBarController.refresh()
             return
         }
 
+        appState.shortcutMonitorActive = true
         if appState.lastMessage.contains("Accessibility") || appState.lastMessage.contains("shortcut") {
             appState.lastMessage = "Ready"
         }

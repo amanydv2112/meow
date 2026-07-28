@@ -10,6 +10,7 @@ public final class GlobalShortcutMonitor: @unchecked Sendable {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var isPressed = false
+    private var optionIsDown = false
 
     public init(keyCode: Int = 49, requiresOption: Bool = true) {
         self.keyCode = keyCode
@@ -55,6 +56,7 @@ public final class GlobalShortcutMonitor: @unchecked Sendable {
         eventTap = nil
         runLoopSource = nil
         isPressed = false
+        optionIsDown = false
     }
 
     private static let eventCallback: CGEventTapCallBack = { _, type, event, userInfo in
@@ -77,10 +79,12 @@ public final class GlobalShortcutMonitor: @unchecked Sendable {
 
         let eventKeyCode = Int(event.getIntegerValueField(.keyboardEventKeycode))
         let flags = event.flags
-        let optionMatches = !requiresOption || flags.contains(.maskAlternate)
+        let eventHasOption = flags.contains(.maskAlternate)
+        let optionMatches = !requiresOption || eventHasOption || optionIsDown
 
         if type == .flagsChanged {
-            if isPressed, requiresOption, !optionMatches {
+            optionIsDown = eventHasOption
+            if isPressed, requiresOption, !optionIsDown {
                 finishShortcut()
                 return nil
             }

@@ -19,6 +19,7 @@ final class StatusBarController {
         appState.$lastMessage.sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
         appState.$isPaused.sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
         appState.$accessibilityTrusted.sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
+        appState.$shortcutMonitorActive.sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
         dictationController.$status.sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
     }
 
@@ -50,6 +51,8 @@ final class StatusBarController {
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
         menu.addItem(withTitle: appState.lastMessage, action: nil, keyEquivalent: "")
+        let shortcutState = appState.shortcutMonitorActive ? "Shortcut: Option + Space active" : "Shortcut: not active"
+        menu.addItem(withTitle: shortcutState, action: nil, keyEquivalent: "")
         menu.addItem(.separator())
 
         let pauseTitle = appState.isPaused ? "Resume Dictation" : "Pause Dictation"
