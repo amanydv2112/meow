@@ -74,13 +74,21 @@ private struct SettingsView: View {
     private var shortcutTab: some View {
         Form {
             Section("Activation") {
-                Toggle("Require Option modifier", isOn: $appState.settings.shortcutRequiresOption)
-                Stepper(value: $appState.settings.shortcutKeyCode, in: 0...126) {
-                    Text("Key code: \(appState.settings.shortcutKeyCode)")
+                Toggle("Use fn as push-to-talk", isOn: $appState.settings.shortcutUsesFunctionKey)
+
+                if appState.settings.shortcutUsesFunctionKey {
+                    Text("Hold fn to record. Release fn to transcribe and paste.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Toggle("Require Option modifier", isOn: $appState.settings.shortcutRequiresOption)
+                    Stepper(value: $appState.settings.shortcutKeyCode, in: 0...126) {
+                        Text("Key code: \(appState.settings.shortcutKeyCode)")
+                    }
+                    Text("Fallback custom shortcut. macOS key code 49 is Space.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
-                Text("Default is Option + Space. macOS key code 49 is Space.")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
             }
 
             HStack {

@@ -39,6 +39,7 @@ final class MainApp: NSObject, NSApplicationDelegate {
         )
 
         shortcutMonitor = GlobalShortcutMonitor(
+            usesFunctionKeyOnly: appState.settings.shortcutUsesFunctionKey,
             keyCode: appState.settings.shortcutKeyCode,
             requiresOption: appState.settings.shortcutRequiresOption
         )
@@ -61,6 +62,7 @@ final class MainApp: NSObject, NSApplicationDelegate {
         if settingsWindowController == nil {
             settingsWindowController = SettingsWindowController(appState: appState) { [weak self] in
                 guard let self else { return }
+                self.shortcutMonitor.usesFunctionKeyOnly = self.appState.settings.shortcutUsesFunctionKey
                 self.shortcutMonitor.keyCode = self.appState.settings.shortcutKeyCode
                 self.shortcutMonitor.requiresOption = self.appState.settings.shortcutRequiresOption
                 self.refreshShortcutMonitor(promptForAccessibility: false)
@@ -76,7 +78,7 @@ final class MainApp: NSObject, NSApplicationDelegate {
 
         guard trusted else {
             shortcutMonitor.stop()
-            appState.lastMessage = "Enable Accessibility permission for Option + Space"
+            appState.lastMessage = "Enable Accessibility permission for fn dictation"
             appState.shortcutMonitorActive = false
             statusBarController.refresh()
             if promptForAccessibility {
@@ -93,7 +95,7 @@ final class MainApp: NSObject, NSApplicationDelegate {
         accessibilityPollTimer = nil
 
         guard shortcutMonitor.start() else {
-            appState.lastMessage = "Unable to start Option + Space shortcut. Restart EchoType."
+            appState.lastMessage = "Unable to start dictation shortcut. Restart EchoType."
             appState.shortcutMonitorActive = false
             UserNotifier.notify(title: "EchoType shortcut unavailable", body: appState.lastMessage)
             statusBarController.refresh()

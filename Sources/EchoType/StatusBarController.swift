@@ -51,7 +51,8 @@ final class StatusBarController {
     private func buildMenu() -> NSMenu {
         let menu = NSMenu()
         menu.addItem(withTitle: appState.lastMessage, action: nil, keyEquivalent: "")
-        let shortcutState = appState.shortcutMonitorActive ? "Shortcut: Option + Space active" : "Shortcut: not active"
+        let shortcutName = appState.settings.shortcutUsesFunctionKey ? "fn" : "custom"
+        let shortcutState = appState.shortcutMonitorActive ? "Shortcut: \(shortcutName) active" : "Shortcut: not active"
         menu.addItem(withTitle: shortcutState, action: nil, keyEquivalent: "")
         menu.addItem(.separator())
 

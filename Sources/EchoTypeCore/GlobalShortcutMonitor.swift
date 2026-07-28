@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 
 public final class GlobalShortcutMonitor: @unchecked Sendable {
+    public var usesFunctionKeyOnly: Bool
     public var keyCode: Int
     public var requiresOption: Bool
     public var onShortcutDown: (@MainActor @Sendable () -> Void)?
@@ -11,8 +12,10 @@ public final class GlobalShortcutMonitor: @unchecked Sendable {
     private var runLoopSource: CFRunLoopSource?
     private var isPressed = false
     private var optionIsDown = false
+    private var functionKeyIsDown = false
 
-    public init(keyCode: Int = 49, requiresOption: Bool = true) {
+    public init(usesFunctionKeyOnly: Bool = true, keyCode: Int = 49, requiresOption: Bool = false) {
+        self.usesFunctionKeyOnly = usesFunctionKeyOnly
         self.keyCode = keyCode
         self.requiresOption = requiresOption
     }
@@ -57,6 +60,7 @@ public final class GlobalShortcutMonitor: @unchecked Sendable {
         runLoopSource = nil
         isPressed = false
         optionIsDown = false
+        functionKeyIsDown = false
     }
 
     private static let eventCallback: CGEventTapCallBack = { _, type, event, userInfo in
@@ -79,15 +83,23 @@ public final class GlobalShortcutMonitor: @unchecked Sendable {
 
         let eventKeyCode = Int(event.getIntegerValueField(.keyboardEventKeycode))
         let flags = event.flags
+        let eventHasFunctionKey = flags.contains(.maskSecondaryFn)
         let eventHasOption = flags.contains(.maskAlternate)
         let optionMatches = !requiresOption || eventHasOption || optionIsDown
 
         if type == .flagsChanged {
+            if usesFunctionKeyOnly {
+                return handleFunctionKeyFlagsChanged(isDown: eventHasFunctionKey, event: event)
+            }
             optionIsDown = eventHasOption
             if isPressed, requiresOption, !optionIsDown {
                 finishShortcut()
                 return nil
             }
+            return Unmanaged.passUnretained(event)
+        }
+
+        if usesFunctionKeyOnly {
             return Unmanaged.passUnretained(event)
         }
 
@@ -123,5 +135,25 @@ public final class GlobalShortcutMonitor: @unchecked Sendable {
         isPressed = false
         let callback = onShortcutUp
         Task { @MainActor in callback?() }
+    }
+
+    private func handleFunctionKeyFlagsChanged(isDown: Bool, event: CGEvent) -> Unmanaged<CGEvent>? {
+        if isDown, !functionKeyIsDown {
+            functionKeyIsDown = true
+            isPressed = true
+            let callback = onShortcutDown
+            Task { @MainActor in callback?() }
+            return nil
+        }
+
+        if !isDown, functionKeyIsDown {
+            functionKeyIsDown = false
+            if isPressed {
+                finishShortcut()
+            }
+            return nil
+        }
+
+        return Unmanaged.passUnretained(event)
     }
 }
