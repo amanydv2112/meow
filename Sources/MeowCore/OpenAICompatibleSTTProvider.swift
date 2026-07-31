@@ -17,7 +17,7 @@ public struct OpenAICompatibleSTTProvider: STTProvider {
         }
 
         let audioData = try Data(contentsOf: audioFile)
-        let boundary = "EchoType-\(UUID().uuidString)"
+        let boundary = "Meow-\(UUID().uuidString)"
         let request = try Self.makeTranscriptionRequest(
             audioFileURL: audioFile,
             fileData: audioData,

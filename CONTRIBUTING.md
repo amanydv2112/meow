@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping improve EchoType.
+Thanks for helping improve meow.
 
 ## Development Setup
 
@@ -18,21 +18,27 @@ swift build
 Run:
 
 ```bash
-swift run EchoType
+swift run meow
 ```
 
 Smoke tests:
 
 ```bash
-swift run EchoTypeCoreSmokeTests
-swift run EchoTypeRecorderSmokeTests
-swift run EchoType --notify-smoke-test
+swift run MeowCoreSmokeTests
+swift run MeowRecorderSmokeTests
+swift run meow --notify-smoke-test
 ```
 
 Build a release artifact:
 
 ```bash
 ./scripts/build-app.sh
+```
+
+Regenerate the app icon after editing `Sources/MeowCore/CatIcon.swift`:
+
+```bash
+swift run MeowIconGen
 ```
 
 ## Pull Requests

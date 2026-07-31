@@ -1,9 +1,9 @@
 import Foundation
-import EchoTypeCore
+import MeowCore
 
 @main
 @MainActor
-struct EchoTypeRecorderSmokeTests {
+struct MeowRecorderSmokeTests {
     static func main() async {
         do {
             let granted: Bool
@@ -17,7 +17,7 @@ struct EchoTypeRecorderSmokeTests {
             }
 
             guard granted else {
-                print("EchoTypeRecorderSmokeTests skipped: microphone permission is not granted for this terminal/app.")
+                print("MeowRecorderSmokeTests skipped: microphone permission is not granted for this terminal/app.")
                 return
             }
 
@@ -31,9 +31,9 @@ struct EchoTypeRecorderSmokeTests {
                 fatalError("Recorder produced an empty or too-short file.")
             }
 
-            print("EchoTypeRecorderSmokeTests passed: recorded \(result.byteCount) bytes for \(String(format: "%.2f", result.duration))s")
+            print("MeowRecorderSmokeTests passed: recorded \(result.byteCount) bytes for \(String(format: "%.2f", result.duration))s")
         } catch {
-            fatalError("EchoTypeRecorderSmokeTests failed: \(error.localizedDescription)")
+            fatalError("MeowRecorderSmokeTests failed: \(error.localizedDescription)")
         }
     }
 }

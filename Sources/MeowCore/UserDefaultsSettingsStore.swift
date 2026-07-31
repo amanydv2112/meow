@@ -2,8 +2,8 @@ import Foundation
 
 public final class UserDefaultsSettingsStore: @unchecked Sendable {
     private let defaults: UserDefaults
-    private let key = "EchoType.AppSettings"
-    private let apiKeyKey = "EchoType.OpenAICompatibleAPIKey"
+    private let key = "Meow.AppSettings"
+    private let apiKeyKey = "Meow.OpenAICompatibleAPIKey"
 
     public init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

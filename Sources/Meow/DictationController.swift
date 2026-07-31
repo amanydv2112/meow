@@ -1,6 +1,6 @@
 import AppKit
 import Combine
-import EchoTypeCore
+import MeowCore
 import Foundation
 
 @MainActor
@@ -167,7 +167,7 @@ final class DictationController: ObservableObject {
         status = .failed(message)
         appState.lastMessage = message
         hud.hide()
-        UserNotifier.notify(title: "EchoType", body: message)
+        UserNotifier.notify(title: "meow", body: message)
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
             if case .failed = self?.status {
                 self?.status = .idle

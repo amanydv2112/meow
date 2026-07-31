@@ -1,15 +1,15 @@
 name: Bug Report
-description: Report something that is broken in EchoType.
+description: Report something that is broken in meow.
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
-      value: Thanks for helping improve EchoType.
+      value: Thanks for helping improve meow.
   - type: input
     id: version
     attributes:
-      label: EchoType version
+      label: meow version
       placeholder: v0.1.0 or commit SHA
   - type: input
     id: macos
@@ -28,7 +28,7 @@ body:
     attributes:
       label: Steps to reproduce
       placeholder: |
-        1. Launch EchoType
+        1. Launch meow
         2. Hold Option + Space
         3. ...
   - type: textarea

@@ -23,10 +23,10 @@ jobs:
         run: swift build
 
       - name: Core Smoke Test
-        run: swift run EchoTypeCoreSmokeTests
+        run: swift run MeowCoreSmokeTests
 
       - name: Notifier Smoke Test
-        run: swift run EchoType --notify-smoke-test
+        run: swift run meow --notify-smoke-test
 
   release:
     name: Publish Release
@@ -47,5 +47,5 @@ jobs:
         with:
           generate_release_notes: true
           files: |
-            dist/EchoType-macOS-arm64.zip
-            dist/EchoType-macOS-arm64.zip.sha256
+            dist/meow-macOS-arm64.zip
+            dist/meow-macOS-arm64.zip.sha256

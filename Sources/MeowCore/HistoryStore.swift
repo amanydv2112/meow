@@ -27,7 +27,7 @@ public final class SQLiteHistoryStore: HistoryStore, @unchecked Sendable {
         sqlite3_close(database)
     }
 
-    public static func defaultDatabaseURL(appName: String = "EchoType") throws -> URL {
+    public static func defaultDatabaseURL(appName: String = "meow") throws -> URL {
         let support = try FileManager.default.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CONFIGURATION="${CONFIGURATION:-release}"
-APP_NAME="EchoType"
+APP_NAME="meow"
 ARCH_NAME="${ARCH_NAME:-arm64}"
 DIST_DIR="$ROOT_DIR/dist"
 APP_DIR="$ROOT_DIR/dist/$APP_NAME.app"
@@ -17,10 +17,15 @@ cd "$ROOT_DIR"
 export COPYFILE_DISABLE=1
 swift build -c "$CONFIGURATION" --product "$APP_NAME"
 
+if [ ! -f "$ROOT_DIR/Resources/$APP_NAME.icns" ]; then
+  swift run MeowIconGen "$ROOT_DIR/Resources/$APP_NAME.icns"
+fi
+
 rm -rf "$APP_DIR" "$ZIP_PATH" "$SHA_PATH"
 mkdir -p "$MACOS_DIR" "$RESOURCES_DIR"
 cp ".build/$CONFIGURATION/$APP_NAME" "$MACOS_DIR/$APP_NAME"
 cp "$ROOT_DIR/Resources/Info.plist" "$CONTENTS_DIR/Info.plist"
+cp "$ROOT_DIR/Resources/$APP_NAME.icns" "$RESOURCES_DIR/$APP_NAME.icns"
 plutil -lint "$CONTENTS_DIR/Info.plist" >/dev/null
 find "$APP_DIR" -name '._*' -delete
 

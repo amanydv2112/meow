@@ -1,5 +1,5 @@
 import AppKit
-import EchoTypeCore
+import MeowCore
 import SwiftUI
 
 @MainActor
@@ -8,7 +8,7 @@ final class SettingsWindowController: NSWindowController {
         let rootView = SettingsView(appState: appState, onSaved: onSaved)
         let hostingController = NSHostingController(rootView: rootView)
         let window = NSWindow(contentViewController: hostingController)
-        window.title = "EchoType Settings"
+        window.title = "meow Settings"
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.setContentSize(NSSize(width: 620, height: 520))
         window.center()
@@ -59,7 +59,13 @@ private struct SettingsView: View {
 
             Section("Cleanup") {
                 Toggle("Clean up transcript before pasting", isOn: $appState.settings.cleanupEnabled)
+                Text(appState.settings.cleanupEnabled
+                    ? "Fixes punctuation, casing, and filler words through the chat model below. Adds a second API call to every dictation."
+                    : "Off. The transcript is pasted exactly as the speech-to-text provider returned it, with no second API call.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
                 TextField("Cleanup model", text: $appState.settings.cleanupModel)
+                    .disabled(!appState.settings.cleanupEnabled)
             }
 
             HStack {

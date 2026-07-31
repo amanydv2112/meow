@@ -1,5 +1,5 @@
 import Combine
-import EchoTypeCore
+import MeowCore
 import Foundation
 
 @MainActor

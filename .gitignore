@@ -3,7 +3,7 @@
 .build/
 DerivedData/
 dist/
-EchoType.app/
+meow.app/
 .swiftpm/
 *.zip
 *.sha256

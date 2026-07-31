@@ -43,7 +43,7 @@ final class RecordingHUD {
     private func ensurePanel() {
         if panel == nil {
             let panel = NSPanel(
-                contentRect: NSRect(x: 0, y: 0, width: 220, height: 62),
+                contentRect: NSRect(x: 0, y: 0, width: HUDView.size.width, height: HUDView.size.height),
                 styleMask: [.borderless, .nonactivatingPanel],
                 backing: .buffered,
                 defer: false
@@ -51,7 +51,10 @@ final class RecordingHUD {
             panel.level = .floating
             panel.isOpaque = false
             panel.backgroundColor = .clear
-            panel.hasShadow = true
+            // The content draws its own soft shadow. A window shadow would need
+            // invalidating on every waveform frame and would outline the panel
+            // rather than the bars.
+            panel.hasShadow = false
             panel.ignoresMouseEvents = true
             panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
             self.panel = panel
@@ -64,13 +67,19 @@ final class RecordingHUD {
         }
     }
 
+    /// Bottom centre, just clear of the Dock. `visibleFrame` already excludes
+    /// the Dock and the menu bar, so this also lands correctly when the Dock is
+    /// hidden or moved to a side edge.
     private func positionPanel() {
         guard let panel, let screen = NSScreen.main else { return }
         let frame = screen.visibleFrame
+        // The panel carries transparent margin for the shadow, so offset by that
+        // margin to keep the pill the intended distance above the Dock.
+        let shadowMargin = (HUDView.size.height - HUDView.pillSize.height) / 2
         panel.setFrameOrigin(
             NSPoint(
                 x: frame.midX - panel.frame.width / 2,
-                y: frame.maxY - panel.frame.height - 24
+                y: frame.minY + 14 - shadowMargin
             )
         )
     }
@@ -81,64 +90,63 @@ private final class RecordingHUDModel: ObservableObject {
     @Published var level: Double = 0
 }
 
+/// A dark capsule holding the mic and the waveform, the convention every
+/// comparable dictation tool has landed on. The pill is always dark and the
+/// marks are always white, rather than following the system appearance, so
+/// contrast holds no matter what is on screen behind it.
 private struct HUDView: View {
     @ObservedObject var model: RecordingHUDModel
 
+    /// The panel is larger than the pill to leave room for the drop shadow.
+    static let size = CGSize(width: 180, height: 54)
+    static let pillSize = CGSize(width: 152, height: 34)
+
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Color.red.opacity(0.14))
-                    .frame(width: 34, height: 34)
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.red)
-            }
+        HStack(spacing: 10) {
+            Image(systemName: "mic.fill")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.7))
 
             LevelBars(level: model.level)
-                .frame(width: 128, height: 34)
+                .frame(width: 108, height: 22)
         }
-        .padding(.horizontal, 18)
-        .frame(width: 220, height: 62)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.18), lineWidth: 1)
-        }
+        .frame(width: Self.pillSize.width, height: Self.pillSize.height)
+        .background(
+            Capsule(style: .continuous)
+                .fill(Color.black.opacity(0.82))
+                .shadow(color: .black.opacity(0.3), radius: 6, x: 0, y: 2)
+        )
+        .frame(width: Self.size.width, height: Self.size.height)
     }
 }
 
 private struct LevelBars: View {
     let level: Double
-    private let barCount = 11
+    private let barCount = 15
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
             let time = timeline.date.timeIntervalSinceReferenceDate
-            HStack(alignment: .center, spacing: 5) {
+            HStack(alignment: .center, spacing: 4.5) {
                 ForEach(0..<barCount, id: \.self) { index in
                     Capsule(style: .continuous)
-                        .fill(barColor(for: index))
-                        .frame(width: 6, height: barHeight(index: index, time: time))
+                        .fill(Color.white.opacity(0.7 + 0.3 * min(max(level, 0), 1)))
+                        .frame(width: 3, height: barHeight(index: index, time: time))
                 }
             }
             .animation(.easeOut(duration: 0.08), value: level)
         }
     }
 
+    /// Quiet breathing when silent, a centre-weighted envelope when speaking.
     private func barHeight(index: Int, time: TimeInterval) -> CGFloat {
         let center = Double(barCount - 1) / 2
         let distanceFromCenter = abs(Double(index) - center) / center
-        let voiceShape = 1 - distanceFromCenter * 0.58
-        let motion = (sin(time * 7.5 + Double(index) * 0.82) + 1) / 2
-        let idleMotion = 0.08 + motion * 0.08
-        let activeLevel = max(level, 0.04) * voiceShape + motion * level * 0.22
-        let mixed = max(idleMotion, activeLevel)
-        return 6 + CGFloat(min(max(mixed, 0), 1)) * 28
-    }
-
-    private func barColor(for index: Int) -> Color {
-        let midpoint = barCount / 2
-        return index <= midpoint ? Color.red.opacity(0.92) : Color.cyan.opacity(0.86)
+        let envelope = 1 - distanceFromCenter * 0.55
+        let wobble = (sin(time * 6.2 + Double(index) * 0.7) + 1) / 2
+        let idle = 0.05 + wobble * 0.04
+        let active = level * envelope * (0.78 + wobble * 0.22)
+        let mixed = max(idle, active)
+        return 3 + CGFloat(min(max(mixed, 0), 1)) * 19
     }
 }

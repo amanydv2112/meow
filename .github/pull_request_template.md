@@ -5,9 +5,9 @@
 ## Testing
 
 - [ ] `swift build`
-- [ ] `swift run EchoTypeCoreSmokeTests`
-- [ ] `swift run EchoTypeRecorderSmokeTests`
-- [ ] `swift run EchoType --notify-smoke-test`
+- [ ] `swift run MeowCoreSmokeTests`
+- [ ] `swift run MeowRecorderSmokeTests`
+- [ ] `swift run meow --notify-smoke-test`
 
 ## Notes
 

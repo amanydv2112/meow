@@ -82,7 +82,7 @@ public final class AudioRecorder: @unchecked Sendable {
 
     private func temporaryRecordingURL() -> URL {
         FileManager.default.temporaryDirectory
-            .appendingPathComponent("echotype-\(UUID().uuidString)")
+            .appendingPathComponent("meow-\(UUID().uuidString)")
             .appendingPathExtension("wav")
     }
 }
@@ -160,7 +160,7 @@ private final class AudioFileSink: @unchecked Sendable {
         do {
             try audioFile?.write(from: buffer)
         } catch {
-            NSLog("EchoType audio write failed: \(error.localizedDescription)")
+            NSLog("meow audio write failed: \(error.localizedDescription)")
         }
     }
 

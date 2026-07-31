@@ -1,6 +1,6 @@
 import AppKit
 import Combine
-import EchoTypeCore
+import MeowCore
 import Foundation
 
 @MainActor
@@ -10,6 +10,8 @@ final class StatusBarController {
     private let dictationController: DictationController
     private let openSettings: () -> Void
     private var cancellables: Set<AnyCancellable> = []
+    private var processingTimer: Timer?
+    private var processingPhase = 0
 
     init(appState: AppState, dictationController: DictationController, openSettings: @escaping () -> Void) {
         self.appState = appState
@@ -24,27 +26,74 @@ final class StatusBarController {
     }
 
     func refresh() {
-        let currentTitle = title
         let currentMenu = buildMenu()
+        let currentTooltip = tooltip
+        setProcessingAnimation(enabled: badge == .processing)
+
         DispatchQueue.main.async { [weak self] in
-            self?.statusItem.button?.title = currentTitle
-            self?.statusItem.menu = currentMenu
+            guard let self, let button = self.statusItem.button else { return }
+            button.imagePosition = .imageOnly
+            button.title = ""
+            button.toolTip = currentTooltip
+            button.image = CatIcon.menuBarImage(badge: self.badge, processingPhase: self.processingPhase)
+            self.statusItem.menu = currentMenu
         }
     }
 
-    private var title: String {
+    /// State is shown as a small mark beside the cat rather than as a word, so
+    /// the item keeps a constant, unobtrusive width.
+    private var badge: CatIcon.Badge? {
         switch dictationController.status {
         case .idle:
             if !appState.accessibilityTrusted {
-                return "Setup Required"
+                return .attention
             }
-            return appState.isPaused ? "EchoType Paused" : "EchoType"
+            return appState.isPaused ? .paused : nil
         case .recording:
-            return "Recording"
+            return .recording
         case .processing:
-            return "Processing"
+            return .processing
         case .failed:
-            return "EchoType Error"
+            return .attention
+        }
+    }
+
+    private var tooltip: String {
+        switch dictationController.status {
+        case .idle:
+            if !appState.accessibilityTrusted {
+                return "meow: Accessibility permission required"
+            }
+            return appState.isPaused ? "meow: paused" : "meow"
+        case .recording:
+            return "meow: recording"
+        case .processing:
+            return "meow: transcribing"
+        case .failed:
+            return "meow: \(appState.lastMessage)"
+        }
+    }
+
+    /// Cycles the three processing dots. Only the button image is redrawn so an
+    /// open menu is left alone.
+    private func setProcessingAnimation(enabled: Bool) {
+        guard enabled else {
+            processingTimer?.invalidate()
+            processingTimer = nil
+            processingPhase = 0
+            return
+        }
+        guard processingTimer == nil else { return }
+
+        processingTimer = Timer.scheduledTimer(withTimeInterval: 0.28, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self else { return }
+                self.processingPhase = (self.processingPhase + 1) % 3
+                self.statusItem.button?.image = CatIcon.menuBarImage(
+                    badge: .processing,
+                    processingPhase: self.processingPhase
+                )
+            }
         }
     }
 
@@ -60,6 +109,11 @@ final class StatusBarController {
         let pauseItem = NSMenuItem(title: pauseTitle, action: #selector(togglePaused), keyEquivalent: "")
         pauseItem.target = self
         menu.addItem(pauseItem)
+
+        let cleanupItem = NSMenuItem(title: "Clean Up Text", action: #selector(toggleCleanup), keyEquivalent: "")
+        cleanupItem.state = appState.settings.cleanupEnabled ? .on : .off
+        cleanupItem.target = self
+        menu.addItem(cleanupItem)
 
         let permissionTitle = appState.accessibilityTrusted ? "Check Permissions" : "Enable Accessibility Permission"
         let permissionItem = NSMenuItem(title: permissionTitle, action: #selector(checkPermissions), keyEquivalent: "")
@@ -88,7 +142,7 @@ final class StatusBarController {
         }
 
         menu.addItem(.separator())
-        let quitItem = NSMenuItem(title: "Quit EchoType", action: #selector(quit), keyEquivalent: "q")
+        let quitItem = NSMenuItem(title: "Quit meow", action: #selector(quit), keyEquivalent: "q")
         quitItem.target = self
         menu.addItem(quitItem)
         return menu
@@ -100,6 +154,13 @@ final class StatusBarController {
 
     @objc private func togglePaused() {
         appState.isPaused.toggle()
+    }
+
+    @objc private func toggleCleanup() {
+        appState.settings.cleanupEnabled.toggle()
+        appState.save()
+        appState.lastMessage = appState.settings.cleanupEnabled ? "Cleanup on" : "Cleanup off"
+        refresh()
     }
 
     @objc private func checkPermissions() {

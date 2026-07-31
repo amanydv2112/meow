@@ -3,13 +3,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "EchoType",
+    name: "meow",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "EchoType", targets: ["EchoType"]),
-        .library(name: "EchoTypeCore", targets: ["EchoTypeCore"])
+        .executable(name: "meow", targets: ["meow"]),
+        .library(name: "MeowCore", targets: ["MeowCore"])
     ],
     targets: [
         .target(
@@ -18,27 +18,34 @@ let package = Package(
             publicHeadersPath: "include"
         ),
         .target(
-            name: "EchoTypeCore",
+            name: "MeowCore",
             dependencies: ["CSQLite"],
-            path: "Sources/EchoTypeCore",
+            path: "Sources/MeowCore",
             linkerSettings: [
                 .linkedLibrary("sqlite3")
             ]
         ),
+        // Lowercase so the built binary and the .app bundle are named "meow".
+        // Nothing imports this target, so the module name never appears in code.
         .executableTarget(
-            name: "EchoType",
-            dependencies: ["EchoTypeCore"],
-            path: "Sources/EchoType"
+            name: "meow",
+            dependencies: ["MeowCore"],
+            path: "Sources/Meow"
         ),
         .executableTarget(
-            name: "EchoTypeCoreSmokeTests",
-            dependencies: ["EchoTypeCore"],
-            path: "Tests/EchoTypeCoreSmokeTests"
+            name: "MeowIconGen",
+            dependencies: ["MeowCore"],
+            path: "Tools/MeowIconGen"
         ),
         .executableTarget(
-            name: "EchoTypeRecorderSmokeTests",
-            dependencies: ["EchoTypeCore"],
-            path: "Tests/EchoTypeRecorderSmokeTests"
+            name: "MeowCoreSmokeTests",
+            dependencies: ["MeowCore"],
+            path: "Tests/MeowCoreSmokeTests"
+        ),
+        .executableTarget(
+            name: "MeowRecorderSmokeTests",
+            dependencies: ["MeowCore"],
+            path: "Tests/MeowRecorderSmokeTests"
         )
     ]
 )

@@ -1,5 +1,5 @@
 import AppKit
-import EchoTypeCore
+import MeowCore
 import SwiftUI
 
 @main
@@ -16,7 +16,7 @@ final class MainApp: NSObject, NSApplicationDelegate {
         let app = NSApplication.shared
         if CommandLine.arguments.contains("--notify-smoke-test") {
             app.setActivationPolicy(.accessory)
-            UserNotifier.notify(title: "EchoType", body: "Notifier smoke test")
+            UserNotifier.notify(title: "meow", body: "Notifier smoke test")
             return
         }
 
@@ -83,8 +83,8 @@ final class MainApp: NSObject, NSApplicationDelegate {
             statusBarController.refresh()
             if promptForAccessibility {
                 UserNotifier.notify(
-                    title: "EchoType needs Accessibility",
-                    body: "Enable EchoType in System Settings > Privacy & Security > Accessibility."
+                    title: "meow needs Accessibility",
+                    body: "Enable meow in System Settings > Privacy & Security > Accessibility."
                 )
             }
             startAccessibilityPolling()
@@ -95,9 +95,9 @@ final class MainApp: NSObject, NSApplicationDelegate {
         accessibilityPollTimer = nil
 
         guard shortcutMonitor.start() else {
-            appState.lastMessage = "Unable to start dictation shortcut. Restart EchoType."
+            appState.lastMessage = "Unable to start dictation shortcut. Restart meow."
             appState.shortcutMonitorActive = false
-            UserNotifier.notify(title: "EchoType shortcut unavailable", body: appState.lastMessage)
+            UserNotifier.notify(title: "meow shortcut unavailable", body: appState.lastMessage)
             statusBarController.refresh()
             return
         }

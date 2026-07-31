@@ -1,16 +1,29 @@
 import Foundation
-import EchoTypeCore
+import MeowCore
 
 @main
-struct EchoTypeCoreSmokeTests {
-    static func main() throws {
+struct MeowCoreSmokeTests {
+    static func main() async throws {
         try testTranscriptionRequestUsesOpenAICompatibleEndpointAndMultipartBody()
         try testParseTranscriptSupportsJSONAndPlainText()
         try testPolishRequestUsesChatCompletionEndpoint()
         try testPolishRequestForbidsAssistantStyleAnswers()
         testPolishGuardRejectsLikelyAssistantAnswer()
+        try await testCleanupToggleSkipsPolishing()
         try testHistoryStorePersistsAndClearsRecords()
-        print("EchoTypeCoreSmokeTests passed")
+        print("MeowCoreSmokeTests passed")
+    }
+
+    /// Turning cleanup off in Settings must skip the chat call entirely. The
+    /// empty API key proves it: polishing would throw on it if it ran.
+    private static func testCleanupToggleSkipsPolishing() async throws {
+        expect(AppSettings(cleanupEnabled: false).polisherConfig(apiKey: "k").enabled == false)
+        expect(AppSettings(cleanupEnabled: true).polisherConfig(apiKey: "k").enabled == true)
+
+        let config = AppSettings(cleanupEnabled: false).polisherConfig(apiKey: "")
+        let transcript = "hello there how are you"
+        let result = try await OpenAIChatTextPolisher().polish(transcript, config: config)
+        expect(result == transcript)
     }
 
     private static func testTranscriptionRequestUsesOpenAICompatibleEndpointAndMultipartBody() throws {
@@ -114,7 +127,7 @@ struct EchoTypeCoreSmokeTests {
 
     private static func testHistoryStorePersistsAndClearsRecords() throws {
         let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("echotype-tests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("meow-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
 
