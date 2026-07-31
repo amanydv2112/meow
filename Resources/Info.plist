@@ -26,6 +26,8 @@
     <true/>
     <key>NSMicrophoneUsageDescription</key>
     <string>meow records your voice while you hold the dictation shortcut so it can transcribe and insert text.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>meow uses on-device speech recognition to turn your dictation into text without sending audio anywhere.</string>
     <key>NSSupportsAutomaticGraphicsSwitching</key>
     <true/>
 </dict>

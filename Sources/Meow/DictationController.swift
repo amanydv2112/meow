@@ -16,7 +16,6 @@ final class DictationController: ObservableObject {
 
     private let appState: AppState
     private let recorder = AudioRecorder()
-    private let sttProvider: STTProvider = OpenAICompatibleSTTProvider()
     private let polisher: TextPolisher = OpenAIChatTextPolisher()
     private let clipboardInserter = ClipboardInserter()
     private let hud = RecordingHUD()
@@ -59,6 +58,16 @@ final class DictationController: ObservableObject {
                 hud.show()
             } catch {
                 fail(error.localizedDescription)
+                return
+            }
+
+            // Load the model while the user is still speaking so releasing the shortcut does not
+            // pay for a cold start.
+            if appState.settings.sttEngine == .appleOnDevice {
+                let language = appState.settings.sttLanguage
+                Task.detached(priority: .userInitiated) {
+                    await AppleSpeechModels.prewarm(languageCode: language.isEmpty ? nil : language)
+                }
             }
         }
     }
@@ -85,6 +94,8 @@ final class DictationController: ObservableObject {
 
     private func process(_ recording: RecordingResult) async {
         let appInfo = activeAppAtStart
+        let engine = appState.settings.sttEngine
+        let sttProvider = STTProviderFactory.make(for: engine)
         var rawTranscript: String?
 
         do {
@@ -94,20 +105,23 @@ final class DictationController: ObservableObject {
             )
             rawTranscript = result.text
 
-            let finalText: String
-            do {
-                finalText = try await polisher.polish(result.text, config: appState.polisherConfig())
-            } catch {
-                finalText = result.text
-                saveHistory(
-                    appInfo: appInfo,
-                    rawTranscript: result.text,
-                    polishedText: finalText,
-                    recording: recording,
-                    status: .failed,
-                    errorMessage: "Cleanup failed: \(error.localizedDescription)"
-                )
-                UserNotifier.notify(title: "Cleanup failed", body: "Pasted the raw transcript instead.")
+            var finalText = result.text
+            if canRunCleanup {
+                do {
+                    finalText = try await polisher.polish(result.text, config: appState.polisherConfig())
+                } catch {
+                    finalText = result.text
+                    saveHistory(
+                        appInfo: appInfo,
+                        engine: engine,
+                        rawTranscript: result.text,
+                        polishedText: finalText,
+                        recording: recording,
+                        status: .failed,
+                        errorMessage: "Cleanup failed: \(error.localizedDescription)"
+                    )
+                    UserNotifier.notify(title: "Cleanup failed", body: "Pasted the raw transcript instead.")
+                }
             }
 
             let pasted = clipboardInserter.insert(
@@ -116,6 +130,7 @@ final class DictationController: ObservableObject {
             )
             saveHistory(
                 appInfo: appInfo,
+                engine: engine,
                 rawTranscript: result.text,
                 polishedText: finalText,
                 recording: recording,
@@ -129,6 +144,7 @@ final class DictationController: ObservableObject {
         } catch {
             saveHistory(
                 appInfo: appInfo,
+                engine: engine,
                 rawTranscript: rawTranscript,
                 polishedText: nil,
                 recording: recording,
@@ -140,8 +156,15 @@ final class DictationController: ObservableObject {
         }
     }
 
+    /// Cleanup runs through a chat model, so it needs a key even when transcription is local.
+    private var canRunCleanup: Bool {
+        guard appState.settings.cleanupEnabled else { return false }
+        return !appState.apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     private func saveHistory(
         appInfo: ActiveAppInfo?,
+        engine: STTEngine,
         rawTranscript: String?,
         polishedText: String?,
         recording: RecordingResult,
@@ -154,8 +177,8 @@ final class DictationController: ObservableObject {
             bundleIdentifier: appInfo?.bundleIdentifier,
             rawTranscript: rawTranscript,
             polishedText: polishedText,
-            provider: "OpenAI-compatible",
-            model: appState.settings.sttModel,
+            provider: engine.displayName,
+            model: STTProviderFactory.modelIdentifier(for: engine, settings: appState.settings),
             duration: recording.duration,
             status: status,
             errorMessage: errorMessage

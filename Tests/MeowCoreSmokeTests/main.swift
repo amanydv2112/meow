@@ -11,7 +11,37 @@ struct MeowCoreSmokeTests {
         testPolishGuardRejectsLikelyAssistantAnswer()
         try await testCleanupToggleSkipsPolishing()
         try testHistoryStorePersistsAndClearsRecords()
+        try testSettingsRoundTripPreservesEngine()
+        try testSettingsFromBeforeEngineSettingDefaultToOnDevice()
+        testProviderFactoryMatchesSelectedEngine()
         print("MeowCoreSmokeTests passed")
+    }
+
+    private static func testSettingsRoundTripPreservesEngine() throws {
+        for engine in STTEngine.allCases {
+            let encoded = try JSONEncoder().encode(AppSettings(sttEngine: engine))
+            let decoded = try JSONDecoder().decode(AppSettings.self, from: encoded)
+            expect(decoded.sttEngine == engine)
+        }
+    }
+
+    /// Settings saved before the engine picker existed have no `sttEngine` key. They must still
+    /// decode rather than throwing, and land on the on-device default.
+    private static func testSettingsFromBeforeEngineSettingDefaultToOnDevice() throws {
+        let legacy = Data(#"{"sttBaseURL":"https://api.openai.com/v1","sttModel":"gpt-4o-mini-transcribe"}"#.utf8)
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: legacy)
+
+        expect(decoded.sttEngine == .appleOnDevice)
+        expect(decoded.sttModel == "gpt-4o-mini-transcribe")
+    }
+
+    private static func testProviderFactoryMatchesSelectedEngine() {
+        expect(STTProviderFactory.make(for: .appleOnDevice) is AppleSpeechSTTProvider)
+        expect(STTProviderFactory.make(for: .openAICompatible) is OpenAICompatibleSTTProvider)
+
+        let settings = AppSettings(sttModel: "gpt-4o-mini-transcribe")
+        expect(STTProviderFactory.modelIdentifier(for: .openAICompatible, settings: settings) == "gpt-4o-mini-transcribe")
+        expect(STTProviderFactory.modelIdentifier(for: .appleOnDevice, settings: settings) == "apple-speechanalyzer")
     }
 
     /// Turning cleanup off in Settings must skip the chat call entirely. The

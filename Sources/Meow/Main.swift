@@ -52,6 +52,35 @@ final class MainApp: NSObject, NSApplicationDelegate {
 
         refreshShortcutMonitor(promptForAccessibility: true)
         statusBarController.refresh()
+        checkOnDeviceModel()
+    }
+
+    /// Surfaces a missing on-device model at launch rather than in the middle of the first
+    /// dictation, where the download would stall the paste.
+    private func checkOnDeviceModel() {
+        guard appState.settings.sttEngine == .appleOnDevice else { return }
+        let language = appState.settings.sttLanguage
+        let code = language.isEmpty ? nil : language
+
+        Task { @MainActor in
+            let status = await AppleSpeechModels.status(languageCode: code)
+            switch status {
+            case .installed:
+                await AppleSpeechModels.prewarm(languageCode: code)
+            case .supported, .downloading:
+                appState.lastMessage = "Downloading on-device speech model"
+                statusBarController.refresh()
+                try? await AppleSpeechModels.install(languageCode: code)
+                appState.lastMessage = "Ready"
+                statusBarController.refresh()
+                await AppleSpeechModels.prewarm(languageCode: code)
+            case .unsupportedOS, .unsupportedLanguage:
+                UserNotifier.notify(
+                    title: "On-device transcription unavailable",
+                    body: "\(status.summary) Switch engines in meow Settings."
+                )
+            }
+        }
     }
 
     func applicationWillTerminate(_ notification: Notification) {

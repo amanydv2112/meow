@@ -2,7 +2,12 @@
 
 Open-source Wispr Flow alternative for macOS with bring-your-own API key speech-to-text.
 
-meow is a native macOS menu bar app for push-to-talk dictation. Hold `fn`, speak, release, and meow transcribes with an OpenAI-compatible speech-to-text endpoint, optionally cleans up punctuation/casing, then pastes the text into the active app.
+meow is a native macOS menu bar app for push-to-talk dictation. Hold `fn`, speak, release, and meow transcribes the audio, optionally cleans up punctuation/casing, then pastes the text into the active app.
+
+Transcription runs through one of two engines, switchable in Settings:
+
+- **On-device (Apple)** — the default. Uses Apple's `SpeechAnalyzer` on macOS 26+. No API key, no network, no per-minute cost, and audio never leaves the Mac. The language model is downloaded and shared by the system, so it adds nothing to the app bundle.
+- **OpenAI-compatible** — bring your own key and point it at any `/v1/audio/transcriptions` endpoint.
 
 > v0.1.0 is unsigned/ad-hoc signed and not notarized. macOS may block the first launch until you choose **Open Anyway** in System Settings.
 
@@ -18,8 +23,8 @@ Screenshot and short demo GIF coming with the first GitHub release.
 - Status shown by the cat's own face rather than words: ears up and eyes wide while listening, eyes shut and ears twitching while transcribing, curled up asleep when paused.
 - Dark waveform pill just above the Dock while you speak.
 - Press-and-hold `fn` dictation.
-- Bring your own OpenAI-compatible STT provider.
-- Default STT model: `gpt-4o-mini-transcribe`.
+- Fully offline transcription on macOS 26+ through Apple's on-device speech models.
+- Bring your own OpenAI-compatible STT provider as an alternative.
 - Optional cleanup through an OpenAI-compatible chat endpoint, switchable from the menu bar or Settings.
 - Automatic paste into the active app, with clipboard restoration when possible.
 - Local SQLite transcript history that can be disabled or cleared.
@@ -32,22 +37,17 @@ Screenshot and short demo GIF coming with the first GitHub release.
 3. Launch meow. If macOS blocks it, open **System Settings > Privacy & Security** and choose **Open Anyway**.
 4. Grant Microphone permission for recording.
 5. Grant Accessibility permission so meow can listen for the global shortcut and paste into other apps.
-6. Open meow settings from the menu bar icon and add your provider details:
-  - **Base URL:** use `https://api.openai.com/v1` for OpenAI, or your OpenAI-compatible provider URL.
-  - **API key:** paste your provider API key. meow uses a BYOK model, so no key is bundled.
-  - **STT model:** use `gpt-4o-mini-transcribe` for OpenAI, or the transcription model name from your provider.
-  - **Language code:** optional, for example `en`. Leave blank for auto-detect when supported.
-  - **Provider prompt:** optional vocabulary/context hints for transcription.
-  - **Response format:** keep `text` unless your provider requires `json`.
-  - **Cleanup model:** optional OpenAI-compatible chat model used to fix punctuation/casing before paste.
+6. Open meow settings from the menu bar icon and pick a **Transcription engine**.
+  - With **On-device (Apple)** there is nothing else to configure. Choose a language or leave it on system default, and meow downloads the model on first launch. No extra permission is needed beyond Microphone.
+  - With **OpenAI-compatible**, fill in the provider fields described in [Provider Setup](#provider-setup).
 7. Click **Save** in Settings, then hold `fn`, speak, and release to test dictation.
 
 ## Build From Source
 
 Requirements:
 
-- macOS 14 or newer.
-- Xcode Command Line Tools.
+- macOS 14 or newer, or macOS 26 or newer for the on-device engine.
+- Xcode Command Line Tools with the macOS 26 SDK.
 - Apple Silicon Mac for the default `arm64` release artifact.
 
 Build:
@@ -90,22 +90,38 @@ Regenerate `Resources/meow.icns` after editing the artwork:
 swift run MeowIconGen
 ```
 
+## On-Device Engine
+
+Selected by default. Requires macOS 26 or later; on older systems meow reports this and you should switch to the OpenAI-compatible engine.
+
+- Uses Apple's `SpeechAnalyzer` with the `.transcription` preset on a completed recording.
+- Language models are installed by the system and shared across apps, so they do not ship in `meow.app` and do not count against the app's memory.
+- meow checks for the model at launch and downloads it if missing, so the first dictation is not interrupted by a download. The download needs network access; everything after that is offline.
+- Holding `fn` also preloads the model, so releasing the key does not pay for a cold start.
+- Language is chosen from the list macOS reports as supported. Leave it on system default to follow your Mac's locale.
+- Only Microphone permission is required. `SpeechAnalyzer` never sends audio to Apple, so it does not need the Speech Recognition permission that the older `SFSpeechRecognizer` API required.
+
+Measured on an M1 with a 6 second clip: 0.5s cold, 0.2s once the model is warm.
+
 ## Provider Setup
 
-Default transcription settings:
+Only used when the engine is set to **OpenAI-compatible**.
 
-- Base URL: `https://api.openai.com/v1`
-- Endpoint: `POST /v1/audio/transcriptions`
-- Model: `gpt-4o-mini-transcribe`
-- Response format: `text`
-- Max recorded file size: 24 MB
+- **Base URL:** `https://api.openai.com/v1` for OpenAI, or your provider URL.
+- **API key:** your provider key. meow uses a BYOK model, so no key is bundled.
+- **STT model:** `gpt-4o-mini-transcribe` for OpenAI, or your provider's transcription model name.
+- **Language code:** optional, for example `en`. Leave blank for auto-detect when supported.
+- **Provider prompt:** optional vocabulary/context hints.
+- **Response format:** keep `text` unless your provider requires `json`.
+- Endpoint used: `POST /v1/audio/transcriptions`. Max recorded file size: 24 MB.
 
-Cleanup uses the same base URL and API key through `/v1/chat/completions`. It is designed to preserve meaning, fix punctuation/casing, and avoid answering dictated questions.
+Cleanup uses the same base URL and API key through `/v1/chat/completions`. It is designed to preserve meaning, fix punctuation/casing, and avoid answering dictated questions. Cleanup is a network call regardless of the transcription engine, so pairing the on-device engine with cleanup enabled still needs an API key. Without one, meow skips cleanup and pastes the raw transcript.
 
 Turn it off from the menu bar with **Clean Up Text**, or in **Settings > Provider > Cleanup**. With cleanup off, the transcript is pasted exactly as the speech-to-text provider returned it and no second API call is made, which is also the faster and cheaper path.
 
 ## Privacy Model
 
+- With the on-device engine and cleanup off, meow makes no network calls at all and audio never leaves the Mac.
 - Your API key is stored in local macOS app settings.
 - Audio is written to a temporary WAV file only while processing and is deleted afterward.
 - Transcript history is stored locally in Application Support when enabled.
@@ -137,6 +153,8 @@ swift run meow --notify-smoke-test
 ## Troubleshooting
 
 - **Nothing records:** grant Microphone permission to the app or Terminal that launched it.
+- **On-device engine reports the model is unavailable:** the language has no on-device model, or you are below macOS 26. Pick another language or switch to the OpenAI-compatible engine.
+- **First on-device dictation is slow:** the language model downloads on first use. meow starts this at launch, but it needs network access once. Later dictations are offline.
 - **Shortcut does nothing:** grant Accessibility permission, then restart meow.
 - **Text is copied but not pasted:** Accessibility permission is missing or the target app blocks synthetic paste.
 - **macOS says the app is damaged/unidentified:** v0.1.0 is not notarized. Use **Open Anyway** after downloading from Releases.
@@ -149,8 +167,7 @@ swift run meow --notify-smoke-test
 - Notarized releases.
 - Homebrew Cask.
 - Sparkle auto-update.
-- Local Whisper provider.
-- Realtime streaming transcription.
+- Realtime streaming transcription by feeding live audio into `SpeechAnalyzer` instead of transcribing the finished recording.
 - Shortcut recorder UI instead of numeric key code entry.
 - Better retry UI for failed transcriptions.
 

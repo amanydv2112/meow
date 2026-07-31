@@ -1,6 +1,19 @@
 import Foundation
 
+public enum STTEngine: String, Codable, Sendable, CaseIterable {
+    case appleOnDevice
+    case openAICompatible
+
+    public var displayName: String {
+        switch self {
+        case .appleOnDevice: "On-device (Apple)"
+        case .openAICompatible: "OpenAI-compatible"
+        }
+    }
+}
+
 public struct AppSettings: Equatable, Codable, Sendable {
+    public var sttEngine: STTEngine
     public var sttBaseURL: String
     public var sttModel: String
     public var sttLanguage: String
@@ -15,6 +28,7 @@ public struct AppSettings: Equatable, Codable, Sendable {
     public var shortcutRequiresOption: Bool
 
     public init(
+        sttEngine: STTEngine = .appleOnDevice,
         sttBaseURL: String = "https://api.openai.com/v1",
         sttModel: String = "gpt-4o-mini-transcribe",
         sttLanguage: String = "",
@@ -28,6 +42,7 @@ public struct AppSettings: Equatable, Codable, Sendable {
         shortcutKeyCode: Int = 49,
         shortcutRequiresOption: Bool = false
     ) {
+        self.sttEngine = sttEngine
         self.sttBaseURL = sttBaseURL
         self.sttModel = sttModel
         self.sttLanguage = sttLanguage
@@ -43,6 +58,7 @@ public struct AppSettings: Equatable, Codable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
+        case sttEngine
         case sttBaseURL
         case sttModel
         case sttLanguage
@@ -59,6 +75,7 @@ public struct AppSettings: Equatable, Codable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        sttEngine = try container.decodeIfPresent(STTEngine.self, forKey: .sttEngine) ?? .appleOnDevice
         sttBaseURL = try container.decodeIfPresent(String.self, forKey: .sttBaseURL) ?? "https://api.openai.com/v1"
         sttModel = try container.decodeIfPresent(String.self, forKey: .sttModel) ?? "gpt-4o-mini-transcribe"
         sttLanguage = try container.decodeIfPresent(String.self, forKey: .sttLanguage) ?? ""

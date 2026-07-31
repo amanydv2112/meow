@@ -10,6 +10,7 @@ public enum FlowError: LocalizedError, Equatable {
     case fileTooLarge(bytes: Int64, limitBytes: Int64)
     case permissionMissing(String)
     case unsupportedResponse
+    case localTranscriptionUnavailable(String)
 
     public var errorDescription: String? {
         switch self {
@@ -31,6 +32,8 @@ public enum FlowError: LocalizedError, Equatable {
             "\(name) permission is required."
         case .unsupportedResponse:
             "The provider response could not be read."
+        case let .localTranscriptionUnavailable(reason):
+            reason
         }
     }
 }
