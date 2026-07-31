@@ -11,44 +11,47 @@ public enum CatIcon {
     public static let tileTopColor = NSColor(srgbRed: 0.42, green: 0.36, blue: 0.94, alpha: 1)
     public static let tileBottomColor = NSColor(srgbRed: 0.29, green: 0.23, blue: 0.78, alpha: 1)
 
-    /// A small mark drawn beside the cat to show what the app is doing, so the
-    /// menu bar never has to spell the state out in words.
-    public enum Badge: Equatable {
-        case recording
-        case processing
+    /// What the app is doing. The cat's own ears and eyes change to show this,
+    /// rather than a separate indicator being placed next to it.
+    public enum State: Equatable {
+        case idle
+        case listening
+        /// `phase` cycles the ear twitch so transcribing reads as active work.
+        case thinking(phase: Int)
         case paused
         case attention
     }
 
     /// Monochrome cat for `NSStatusItem`. Marked as a template so macOS tints it
     /// white in dark mode and black in light mode automatically.
-    ///
-    /// `processingPhase` advances the animated dots and is ignored by every
-    /// other badge.
-    public static func menuBarImage(
-        badge: Badge? = nil,
-        processingPhase: Int = 0,
-        pointSize: CGFloat = 18
-    ) -> NSImage {
-        let cat = catImage(size: NSSize(width: pointSize, height: pointSize), color: .black, whiskers: false)
-        guard let badge else {
+    public static func menuBarImage(state: State = .idle, pointSize: CGFloat = 18) -> NSImage {
+        let cat = catImage(
+            size: NSSize(width: pointSize, height: pointSize),
+            color: .black,
+            whiskers: false,
+            expression: Expression(for: state)
+        )
+
+        // Needing permission is not a mood, so it keeps an unambiguous mark.
+        guard state == .attention else {
             cat.isTemplate = true
             return cat
         }
 
         let unit = pointSize / 18
         let gap = 3.5 * unit
-        let width = pointSize + gap + badgeWidth(badge, unit: unit)
+        let markWidth = 2.4 * unit
 
-        let image = NSImage(size: NSSize(width: width, height: pointSize), flipped: false) { rect in
+        let image = NSImage(
+            size: NSSize(width: pointSize + gap + markWidth, height: pointSize),
+            flipped: false
+        ) { rect in
             cat.draw(in: NSRect(x: rect.minX, y: rect.minY, width: pointSize, height: pointSize))
             NSColor.black.setFill()
-            drawBadge(
-                badge,
+            drawAttentionMark(
                 originX: rect.minX + pointSize + gap,
                 centerY: rect.midY,
-                unit: unit,
-                phase: processingPhase
+                unit: unit
             )
             return true
         }
@@ -56,76 +59,101 @@ public enum CatIcon {
         return image
     }
 
-    private static func badgeWidth(_ badge: Badge, unit: CGFloat) -> CGFloat {
-        switch badge {
-        case .recording: return 6 * unit
-        case .processing: return 11 * unit
-        case .paused: return 6 * unit
-        case .attention: return 2.4 * unit
-        }
+    private static func drawAttentionMark(originX: CGFloat, centerY: CGFloat, unit: CGFloat) {
+        let barWidth = 2.4 * unit
+        let stemHeight = 6.4 * unit
+        NSBezierPath(roundedRect: NSRect(
+            x: originX,
+            y: centerY + 9 * unit / 2 - stemHeight,
+            width: barWidth,
+            height: stemHeight
+        ), xRadius: barWidth / 2, yRadius: barWidth / 2).fill()
+        NSBezierPath(ovalIn: NSRect(
+            x: originX,
+            y: centerY - 9 * unit / 2,
+            width: barWidth,
+            height: barWidth
+        )).fill()
     }
 
-    /// Badges are template artwork too, so shape and alpha are the only things
-    /// that survive; each state gets a distinct silhouette rather than a colour.
-    private static func drawBadge(
-        _ badge: Badge,
-        originX: CGFloat,
-        centerY: CGFloat,
-        unit: CGFloat,
-        phase: Int
-    ) {
-        switch badge {
-        case .recording:
-            let diameter = 6 * unit
-            NSBezierPath(ovalIn: NSRect(
-                x: originX,
-                y: centerY - diameter / 2,
-                width: diameter,
-                height: diameter
-            )).fill()
+    /// The only parts of the drawing a state may change: how far the head sits
+    /// down the canvas, where each ear tip points, and the shape of the eyes.
+    /// Everything else stays put so the cat still reads as the same cat.
+    private struct Expression {
+        /// Design units the head, eyes and nose slide down by. Dropping the head
+        /// is what buys room for genuinely tall ears; the ears alone can only
+        /// grow by the 11 units the neutral pose leaves above them.
+        var headDrop: CGFloat
+        var leftEarTip: (x: CGFloat, y: CGFloat)
+        var rightEarTip: (x: CGFloat, y: CGFloat)
+        /// Left eye box in design space; the right eye is mirrored from it.
+        var eye: (x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat)
+        var eyesClosed: Bool
 
-        case .processing:
-            let diameter = 2.5 * unit
-            let stride = 4.25 * unit
-            for index in 0..<3 {
-                let dot = NSBezierPath(ovalIn: NSRect(
-                    x: originX + CGFloat(index) * stride,
-                    y: centerY - diameter / 2,
-                    width: diameter,
-                    height: diameter
-                ))
-                NSColor.black.withAlphaComponent(index == phase % 3 ? 1 : 0.3).setFill()
-                dot.fill()
+        static let neutral = Expression(
+            headDrop: 0,
+            leftEarTip: (24, 89),
+            rightEarTip: (76, 89),
+            eye: (27, 35, 15, 17),
+            eyesClosed: false
+        )
+
+        /// Alert: head tucked down, ears at full stretch, eyes wide.
+        static let listening = Expression(
+            headDrop: 4,
+            leftEarTip: (25, 100),
+            rightEarTip: (75, 100),
+            eye: (25, 33, 19, 21),
+            eyesClosed: false
+        )
+
+        /// Eyes shut in concentration, ears swivelling through three frames.
+        static func thinking(phase: Int) -> Expression {
+            let tips: [((CGFloat, CGFloat), (CGFloat, CGFloat))] = [
+                ((24, 89), (76, 89)),
+                ((20, 93), (77, 85)),
+                ((27, 85), (80, 93))
+            ]
+            let index = ((phase % tips.count) + tips.count) % tips.count
+            return Expression(
+                headDrop: 0,
+                leftEarTip: tips[index].0,
+                rightEarTip: tips[index].1,
+                eye: (27, 42, 15, 3.6),
+                eyesClosed: true
+            )
+        }
+
+        /// Asleep: ears folded out to the sides, eyes shut.
+        static let sleeping = Expression(
+            headDrop: 0,
+            leftEarTip: (14, 77),
+            rightEarTip: (86, 77),
+            eye: (27, 42, 15, 3.6),
+            eyesClosed: true
+        )
+
+        init(for state: State) {
+            switch state {
+            case .idle, .attention: self = .neutral
+            case .listening: self = .listening
+            case .thinking(let phase): self = .thinking(phase: phase)
+            case .paused: self = .sleeping
             }
-            NSColor.black.setFill()
+        }
 
-        case .paused:
-            let barWidth = 2 * unit
-            let barHeight = 9 * unit
-            for index in 0..<2 {
-                NSBezierPath(roundedRect: NSRect(
-                    x: originX + CGFloat(index) * (barWidth + 2 * unit),
-                    y: centerY - barHeight / 2,
-                    width: barWidth,
-                    height: barHeight
-                ), xRadius: barWidth / 2, yRadius: barWidth / 2).fill()
-            }
-
-        case .attention:
-            let barWidth = 2.4 * unit
-            let stemHeight = 6.4 * unit
-            NSBezierPath(roundedRect: NSRect(
-                x: originX,
-                y: centerY + 9 * unit / 2 - stemHeight,
-                width: barWidth,
-                height: stemHeight
-            ), xRadius: barWidth / 2, yRadius: barWidth / 2).fill()
-            NSBezierPath(ovalIn: NSRect(
-                x: originX,
-                y: centerY - 9 * unit / 2,
-                width: barWidth,
-                height: barWidth
-            )).fill()
+        private init(
+            headDrop: CGFloat,
+            leftEarTip: (x: CGFloat, y: CGFloat),
+            rightEarTip: (x: CGFloat, y: CGFloat),
+            eye: (x: CGFloat, y: CGFloat, width: CGFloat, height: CGFloat),
+            eyesClosed: Bool
+        ) {
+            self.headDrop = headDrop
+            self.leftEarTip = leftEarTip
+            self.rightEarTip = rightEarTip
+            self.eye = eye
+            self.eyesClosed = eyesClosed
         }
     }
 
@@ -173,18 +201,24 @@ public enum CatIcon {
             width: catSide,
             height: catSide
         )
-        catImage(size: catRect.size, color: .white, whiskers: true).draw(in: catRect)
+        catImage(size: catRect.size, color: .white, whiskers: true, expression: Expression(for: .idle))
+            .draw(in: catRect)
     }
 
     /// The cat on its own, with the eyes and nose punched out of the alpha
     /// channel so whatever sits behind it shows through.
-    private static func catImage(size: NSSize, color: NSColor, whiskers: Bool) -> NSImage {
+    private static func catImage(
+        size: NSSize,
+        color: NSColor,
+        whiskers: Bool,
+        expression: Expression
+    ) -> NSImage {
         NSImage(size: size, flipped: false) { rect in
             let canvas = Canvas(rect: rect)
             color.setFill()
             color.setStroke()
 
-            body(in: canvas).fill()
+            body(in: canvas, expression: expression).fill()
             if whiskers {
                 let path = whiskerPath(in: canvas)
                 path.lineWidth = canvas.length(2.6)
@@ -194,7 +228,7 @@ public enum CatIcon {
 
             guard let context = NSGraphicsContext.current else { return true }
             context.compositingOperation = .destinationOut
-            features(in: canvas).fill()
+            features(in: canvas, expression: expression).fill()
             context.compositingOperation = .sourceOver
             return true
         }
@@ -203,31 +237,45 @@ public enum CatIcon {
     /// Rounded head plus two triangular ears, merged by the non-zero winding rule.
     /// Every subpath must wind counter-clockwise to match `appendOval`, otherwise
     /// the overlaps subtract instead of merging and punch holes in the silhouette.
-    private static func body(in canvas: Canvas) -> NSBezierPath {
+    /// Only the tips move between expressions; the bases stay anchored inside the
+    /// head so the ears never detach.
+    private static func body(in canvas: Canvas, expression: Expression) -> NSBezierPath {
+        let drop = expression.headDrop
         let path = NSBezierPath()
         path.windingRule = .nonZero
-        path.appendOval(in: canvas.box(x: 13, y: 6, width: 74, height: 68))
+        path.appendOval(in: canvas.box(x: 13, y: 6 - drop, width: 74, height: 68))
 
-        path.move(to: canvas.point(20, 55))
-        path.line(to: canvas.point(50, 72))
-        path.line(to: canvas.point(24, 89))
+        path.move(to: canvas.point(20, 55 - drop))
+        path.line(to: canvas.point(50, 72 - drop))
+        path.line(to: canvas.point(expression.leftEarTip.x, expression.leftEarTip.y))
         path.close()
 
-        path.move(to: canvas.point(80, 55))
-        path.line(to: canvas.point(76, 89))
-        path.line(to: canvas.point(50, 72))
+        path.move(to: canvas.point(80, 55 - drop))
+        path.line(to: canvas.point(expression.rightEarTip.x, expression.rightEarTip.y))
+        path.line(to: canvas.point(50, 72 - drop))
         path.close()
         return path
     }
 
-    private static func features(in canvas: Canvas) -> NSBezierPath {
+    private static func features(in canvas: Canvas, expression: Expression) -> NSBezierPath {
+        let drop = expression.headDrop
         let path = NSBezierPath()
-        path.appendOval(in: canvas.box(x: 27, y: 35, width: 15, height: 17))
-        path.appendOval(in: canvas.box(x: 58, y: 35, width: 15, height: 17))
+        let eye = expression.eye
+        let mirroredX = 100 - eye.x - eye.width
 
-        path.move(to: canvas.point(44, 30))
-        path.line(to: canvas.point(56, 30))
-        path.line(to: canvas.point(50, 21.5))
+        for x in [eye.x, mirroredX] {
+            let box = canvas.box(x: x, y: eye.y - drop, width: eye.width, height: eye.height)
+            if expression.eyesClosed {
+                let radius = box.height / 2
+                path.appendRoundedRect(box, xRadius: radius, yRadius: radius)
+            } else {
+                path.appendOval(in: box)
+            }
+        }
+
+        path.move(to: canvas.point(44, 30 - drop))
+        path.line(to: canvas.point(56, 30 - drop))
+        path.line(to: canvas.point(50, 21.5 - drop))
         path.close()
         return path
     }

@@ -28,31 +28,31 @@ final class StatusBarController {
     func refresh() {
         let currentMenu = buildMenu()
         let currentTooltip = tooltip
-        setProcessingAnimation(enabled: badge == .processing)
+        setProcessingAnimation(enabled: isTranscribing)
 
         DispatchQueue.main.async { [weak self] in
             guard let self, let button = self.statusItem.button else { return }
             button.imagePosition = .imageOnly
             button.title = ""
             button.toolTip = currentTooltip
-            button.image = CatIcon.menuBarImage(badge: self.badge, processingPhase: self.processingPhase)
+            button.image = CatIcon.menuBarImage(state: self.iconState)
             self.statusItem.menu = currentMenu
         }
     }
 
-    /// State is shown as a small mark beside the cat rather than as a word, so
-    /// the item keeps a constant, unobtrusive width.
-    private var badge: CatIcon.Badge? {
+    /// The cat's own expression carries the state, so the menu bar item never
+    /// grows a word or a second glyph.
+    private var iconState: CatIcon.State {
         switch dictationController.status {
         case .idle:
             if !appState.accessibilityTrusted {
                 return .attention
             }
-            return appState.isPaused ? .paused : nil
+            return appState.isPaused ? .paused : .idle
         case .recording:
-            return .recording
+            return .listening
         case .processing:
-            return .processing
+            return .thinking(phase: processingPhase)
         case .failed:
             return .attention
         }
@@ -74,8 +74,13 @@ final class StatusBarController {
         }
     }
 
-    /// Cycles the three processing dots. Only the button image is redrawn so an
-    /// open menu is left alone.
+    private var isTranscribing: Bool {
+        if case .processing = dictationController.status { return true }
+        return false
+    }
+
+    /// Twitches the cat's ears while transcribing. Only the button image is
+    /// redrawn so an open menu is left alone.
     private func setProcessingAnimation(enabled: Bool) {
         guard enabled else {
             processingTimer?.invalidate()
@@ -90,8 +95,7 @@ final class StatusBarController {
                 guard let self else { return }
                 self.processingPhase = (self.processingPhase + 1) % 3
                 self.statusItem.button?.image = CatIcon.menuBarImage(
-                    badge: .processing,
-                    processingPhase: self.processingPhase
+                    state: .thinking(phase: self.processingPhase)
                 )
             }
         }

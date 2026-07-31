@@ -15,7 +15,7 @@ Screenshot and short demo GIF coming with the first GitHub release.
 ## Features
 
 - Native macOS menu bar app with a cat glyph that stays out of your way.
-- Status shown as a small mark beside the cat rather than words: a dot while recording, animated dots while transcribing, pause bars when paused.
+- Status shown by the cat's own face rather than words: ears up and eyes wide while listening, eyes shut and ears twitching while transcribing, curled up asleep when paused.
 - Dark waveform pill just above the Dock while you speak.
 - Press-and-hold `fn` dictation.
 - Bring your own OpenAI-compatible STT provider.
@@ -33,13 +33,13 @@ Screenshot and short demo GIF coming with the first GitHub release.
 4. Grant Microphone permission for recording.
 5. Grant Accessibility permission so meow can listen for the global shortcut and paste into other apps.
 6. Open meow settings from the menu bar icon and add your provider details:
-   - **Base URL:** use `https://api.openai.com/v1` for OpenAI, or your OpenAI-compatible provider URL.
-   - **API key:** paste your provider API key. meow uses a BYOK model, so no key is bundled.
-   - **STT model:** use `gpt-4o-mini-transcribe` for OpenAI, or the transcription model name from your provider.
-   - **Language code:** optional, for example `en`. Leave blank for auto-detect when supported.
-   - **Provider prompt:** optional vocabulary/context hints for transcription.
-   - **Response format:** keep `text` unless your provider requires `json`.
-   - **Cleanup model:** optional OpenAI-compatible chat model used to fix punctuation/casing before paste.
+  - **Base URL:** use `https://api.openai.com/v1` for OpenAI, or your OpenAI-compatible provider URL.
+  - **API key:** paste your provider API key. meow uses a BYOK model, so no key is bundled.
+  - **STT model:** use `gpt-4o-mini-transcribe` for OpenAI, or the transcription model name from your provider.
+  - **Language code:** optional, for example `en`. Leave blank for auto-detect when supported.
+  - **Provider prompt:** optional vocabulary/context hints for transcription.
+  - **Response format:** keep `text` unless your provider requires `json`.
+  - **Cleanup model:** optional OpenAI-compatible chat model used to fix punctuation/casing before paste.
 7. Click **Save** in Settings, then hold `fn`, speak, and release to test dictation.
 
 ## Build From Source
@@ -81,6 +81,8 @@ The cat is drawn as a vector in [Sources/MeowCore/CatIcon.swift](Sources/MeowCor
 
 - The menu bar uses it as a template image, so macOS tints it white in dark mode and black in light mode.
 - The app icon puts a white cat on an indigo rounded-square tile.
+
+The menu bar cat is posed from a single `Expression`, which controls how far the head sits down the canvas, where the ear tips point, and whether the eyes are open ovals or closed slits. Dropping the head is what makes room for the tall listening ears, since the neutral pose already reaches near the top of the design space.
 
 Regenerate `Resources/meow.icns` after editing the artwork:
 
