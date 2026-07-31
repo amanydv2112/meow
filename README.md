@@ -1,6 +1,6 @@
 # meow
 
-Open-source Wispr Flow alternative for macOS with bring-your-own API key speech-to-text.
+Open-source Wispr Flow alternative for macOS with private, on-device speech-to-text.
 
 meow is a native macOS menu bar app for push-to-talk dictation. Hold `fn`, speak, release, and meow transcribes the audio, optionally cleans up punctuation/casing, then pastes the text into the active app.
 
@@ -179,7 +179,7 @@ See [CHANGELOG.md](CHANGELOG.md) for release history.
 
 ## GitHub Topics
 
-Suggested repo topics: `macos`, `swift`, `dictation`, `speech-to-text`, `voice-input`, `openai`, `byok`, `menu-bar-app`.
+Suggested repo topics: `macos`, `swift`, `dictation`, `speech-to-text`, `on-device`, `offline`, `privacy`, `voice-input`, `openai`, `byok`, `menu-bar-app`.
 
 ## License
 
